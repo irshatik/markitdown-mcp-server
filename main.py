@@ -1,45 +1,60 @@
-import asyncio
 import json
-from markitdown import MarkItDown
-from mcp.server.models import InitializationOptions
-from mcp.server import Server
-import mcp.types as types
+import os
+import sys
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
-server = Server("markitdown-mcp-server")
+PORT = int(os.environ.get('PORT', 8000))
 
-@server.list_tools()
-async def list_tools() -> list[types.Tool]:
-    return [
-        types.Tool(
-            name="convert_to_markdown",
-            description="Convert files to Markdown using MarkItDown",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "file_path": {
-                        "type": "string",
-                        "description": "Path to file or URL"
-                    }
-                },
-                "required": ["file_path"]
-            }
-        )
-    ]
-
-@server.call_tool()
-async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    if name == "convert_to_markdown":
+class MCPHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
         try:
-            md = MarkItDown()
-            result = md.convert(arguments["file_path"])
-            return [types.TextContent(type="text", text=result.text_content)]
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body)
+            
+            response = self.handle_request(data)
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode())
         except Exception as e:
-            return [types.TextContent(type="text", text=f"Error: {str(e)}")]
-    return [types.TextContent(type="text", text="Unknown tool")]
+            self.send_error(500, str(e))
 
-async def main():
-    async with server:
-        await server.wait_for_shutdown()
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    def handle_request(self, request):
+        method = request.get("method")
+        
+        if method == "initialize":
+            return {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {
+                    "tools": {}
+                },
+                "serverInfo": {
+                    "name": "markitdown-mcp-server",
+                    "version": "1.0.0"
+                }
+            }
+        
+        elif method == "tools/list":
+            return {
+                "tools": [{
+                    "name": "convert_to_markdown",
+                    "description": "Convert files to Markdown",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {"type": "string", "description": "File path or URL"}
+                        },
+                        "required": ["file_path"]
+                    }
+                }]
+            }
+        
+        elif method == "tools/call":
+            try:
+                from markitdown import MarkItDown
+                md = MarkItDown()
+                result = md.convert(request["params"]["file_path"])
+                return {

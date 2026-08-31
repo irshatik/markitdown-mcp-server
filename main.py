@@ -26,35 +26,27 @@ class MCPHandler(BaseHTTPRequestHandler):
         method = request.get("method")
         
         if method == "initialize":
-            return {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {
-                    "tools": {}
-                },
-                "serverInfo": {
-                    "name": "markitdown-mcp-server",
-                    "version": "1.0.0"
-                }
-            }
+            return {"protocolVersion": "2024-11-05", "capabilities": {"tools": {}}, "serverInfo": {"name": "markitdown-mcp-server", "version": "1.0.0"}}
         
         elif method == "tools/list":
-            return {
-                "tools": [{
-                    "name": "convert_to_markdown",
-                    "description": "Convert files to Markdown",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {"type": "string", "description": "File path or URL"}
-                        },
-                        "required": ["file_path"]
-                    }
-                }]
-            }
+            return {"tools": [{"name": "convert_to_markdown", "description": "Convert files to Markdown", "inputSchema": {"type": "object", "properties": {"file_path": {"type": "string", "description": "File path or URL"}}, "required": ["file_path"]}}]}
         
         elif method == "tools/call":
             try:
                 from markitdown import MarkItDown
                 md = MarkItDown()
                 result = md.convert(request["params"]["file_path"])
-                return {
+                return {"content": [{"type": "text", "text": result.text_content[:5000]}]}
+            except Exception as e:
+                return {"error": str(e)}
+        
+        return {"error": "Unknown method"}
+
+    def log_message(self, *args):
+        pass
+
+if __name__ == '__main__':
+    server = HTTPServer(('0.0.0.0', PORT), MCPHandler)
+    print(f"Server running on port {PORT}")
+    sys.stdout.flush()
+    server.serve_forever()

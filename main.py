@@ -14,13 +14,12 @@ mcp = FastMCP(
 @mcp.tool()
 def convert_to_markdown(file_path: str) -> str:
     """Convert a file (by local path or URL) to Markdown text.
-
     Args:
         file_path: Path to a local file or a URL of the file to convert.
     """
     md = MarkItDown()
     result = md.convert(file_path)
-    return result.text_content[:10000]
+    return result.text_content
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))

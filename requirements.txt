@@ -1,1 +1,1 @@
-markitdown==0.0.10
+markitdown==0.1.7

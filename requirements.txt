@@ -1,2 +1,2 @@
 markitdown==0.1.7
-mcp==1.0.0
+mcp==2.1.1

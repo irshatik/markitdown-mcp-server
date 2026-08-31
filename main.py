@@ -1,43 +1,22 @@
-import asyncio
-import sys
+import os
+from mcp.server.fastmcp import FastMCP
 from markitdown import MarkItDown
-from mcp.server import Server
 
-server = Server("markitdown-mcp-server")
+mcp = FastMCP("markitdown-mcp-server", stateless_http=True)
 
-@server.list_tools()
-async def list_tools():
-    return [
-        {
-            "name": "convert_to_markdown",
-            "description": "Convert files to Markdown using MarkItDown",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "file_path": {
-                        "type": "string",
-                        "description": "Path to file or URL"
-                    }
-                },
-                "required": ["file_path"]
-            }
-        }
-    ]
+@mcp.tool()
+def convert_to_markdown(file_path: str) -> str:
+    """Convert a file (by local path or URL) to Markdown text.
 
-@server.call_tool()
-async def call_tool(name, arguments):
-    if name == "convert_to_markdown":
-        try:
-            md = MarkItDown()
-            result = md.convert(arguments["file_path"])
-            return [{"type": "text", "text": result.text_content}]
-        except Exception as e:
-            return [{"type": "text", "text": f"Error: {str(e)}"}]
-    return [{"type": "text", "text": "Unknown tool"}]
-
-async def main():
-    async with server:
-        await server.wait_for_shutdown()
+    Args:
+        file_path: Path to a local file or a URL of the file to convert.
+    """
+    md = MarkItDown()
+    result = md.convert(file_path)
+    return result.text_content[:10000]
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    port = int(os.environ.get("PORT", 8000))
+    mcp.settings.host = "0.0.0.0"
+    mcp.settings.port = port
+    mcp.run(transport="streamable-http")
